@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model card {
+  id              Int           @id @default(autoincrement())
+  name            String
+  desc            String
+  name_en         String
+  ygoprodeck_url  String        @map("ygoprodecUrl")
+  beta_id         Int           @map("betaId")
+  konami_id       Int           @map("konamiId")
+  md_rarity       String        @map("mdRarity")
+  deck_cards      deckCards[]
+  cardFormats     cardFormats[]
+  cardTypeId      Int
+  cardRaceId      Int
+  cardArchetypeId Int
+
+  type      cardType      @relation(fields: [cardTypeId], references: [id])
+  race      cardRace      @relation(fields: [cardRaceId], references: [id])
+  archetype cardArchetype @relation(fields: [cardArchetypeId], references: [id])
+  userCards userCards[]
+}
+
+model cardSets {
+  id             Int    @id @default(autoincrement())
+  setName        String @map("set_name")
+  setCode        Int    @map("set_code")
+  setRarity      String @map("set_rarity")
+  setRarity_code Int    @map("set_rarity_code")
+  setPrice       Float  @map("set_price")
+
+  @@map("card_sets")
+}
+
+model cardPrice {
+  id Int @id @default(autoincrement())
+
+  cardmarketPrice   Int @map("cardmarket_price")
+  tcgplayerPrice    Int @map("tcgplayer_price")
+  ebayPrice         Int @map("ebay_price")
+  amazonPrice       Int @map("amazon_price")
+  coolstuffincPrice Int @map("coolstuffinc_price")
+
+  @@map("card_price")
+}
+
+model cardType {
+  id                Int    @id @default(autoincrement())
+  type              String
+  humanReadableType String @map("human_readable_type")
+  frameType         String @map("frame_type")
+  card              card[]
+
+  @@map("card_type")
+}
+
+model cardRace {
+  id   Int    @id @default(autoincrement())
+  name String
+  card card[]
+
+  @@map("card_race")
+}
+
+model cardArchetype {
+  id   Int    @id @default(autoincrement())
+  name String
+  card card[]
+
+  @@map("card_archetype")
+}
+
+model cardFormats {
+  card      card    @relation(fields: [cardId], references: [id])
+  format    formats @relation(fields: [formatsId], references: [id])
+  cardId    Int
+  formatsId Int
+
+  @@unique([cardId, formatsId])
+  @@map("card_formats")
+}
+
+model formats {
+  id          Int           @id @default(autoincrement())
+  name        String
+  cardFormats cardFormats[]
+}
+
+model decks {
+  id            Int         @id @default(autoincrement())
+  name          String      @unique @db.VarChar(255)
+  creation_date DateTime    @db.Date
+  is_public     Boolean
+  cards         deckCards[]
+  rating        rating[]
+}
+
+model deckCards {
+  occurs   Int
+  card_id  Int   @map("cardId")
+  card     card  @relation(fields: [card_id], references: [id])
+  decks_id Int   @map("deckId")
+  decks    decks @relation(fields: [decks_id], references: [id])
+
+  @@id([card_id, decks_id])
+  @@map("deck_cards")
+}
+
+model doctrine_migration_versions {
+  version        String    @id
+  executed_at    DateTime? @db.DateTime(0)
+  execution_time Int?
+}
+
+model rating {
+  id      Int   @id @default(autoincrement())
+  rate    Int
+  user_id Int
+  deck_id Int
+  decks   decks @relation(fields: [deck_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  users   users @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+}
+
+model userCards {
+  id        Int     @id @default(autoincrement())
+  favorites Boolean
+  occurs    Int     @default(0)
+
+  user_id Int
+  users   users @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  cardId Int
+  card   card @relation(fields: [cardId], references: [id])
+
+  @@map("user_cards")
+}
+
+model users {
+  id         Int         @id @default(autoincrement())
+  name       String      @db.VarChar(255)
+  email      String      @db.VarChar(255)
+  password   String      @db.VarChar(255)
+  create_at  DateTime    @db.Date
+  delete_at  DateTime?   @db.Date
+  rating     rating[]
+  user_cards userCards[]
+}
