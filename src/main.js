@@ -1,19 +1,150 @@
+const fs = require("fs/promises");
+const { json } = require("stream/consumers");
+// import testJson from '../datas/test.json' assert { type: 'json' };
+
+/**
+ 
+
+  Je te met un tit message ici, Essai de voir toutes les fonctionnalité que tu aura derriere les fonction generales
+  comme getInfos, qui peut etre mis en plein de petite function ou constante, histoire que ce soit plus digeste et facile a coder
+  Pour rappel en JS tu peux crée des function ou constant dans les function
+
+  function Foo() {
+
+    const bar = (m) => console.log(m)
+
+    bar();
+    
+    👌👌👌👌👌
+  }
 
 
-const start = ( ) => {
-    console.log('Hello Karim')
+  // FLAT MAP
+  const data = [
+    {
+      type: ['fdfd', 'dsds']
+    },
+    {
+      type: ['fdfd2', 'dsds2']
+    }
+  ]
+  function Bar(datas) {
+    datas.flatMap(data => data.propery)
+  }
+
+  @Return -> ['fdfd', 'dsds', 'fdfd2', 'dsds2'] tout les type de toute les cartes
+
+
+
+
+  Aller bon chance ^^ 😎
+
+  
+ */
+// lecture du fichier Json
+// async function readCard(url) {
+//   try {
+//     // const data = await fs.readFile(url, "utf8");
+//     data=fetch(url).then(res=>JSON.parse(res))
+//     return console.log(data);
+//   } catch (err) {
+//     throw err;
+//   }
+// }
+
+// ASYNC -> Promise
+/**
+ * @Input String url
+ * @Return Promise<unknown>
+ */
+async function getData(url) {
+  try {
+    // const data = awit fs.readFile(url, "utf8");
+    // return  fs
+    //   .readFile(url)
+    //   .then((res) => JSON.parse(res))
+    //   .then(() => console.log("C"));
+
+    const data = await fs.readFile(url);
+    // JSON.parse(data).then(card=>sendCards(card))
+    let dataParse = JSON.parse(data);
+    return dataParse.data;
+  } catch (err) {
+    throw err;
+  }
 }
+/**
+ * @Description Il doit gerer la sauvegarde en base des cards
+ * @Input [] cards
+ * @Return Promise<boolean>
+ */
+async function sendCards(cards) {
+  // prisma
+}
+
+const relation = ["type", "card_sets", "archetype", "race"];
+
+/* Creation de 1 relation */
+async function createRelation(datas, property) {
+  // new Set() va renvoyer un objet de class Set , ici on veut avoir un tableau avec no type
+  // Pour ca il faut suivre l'instruction ci dessous
+  // suppression des doublons
+  // const relations = [...new Set(datas.flatMap((data) => data[property]))]
+  //   .reduce((acc, val) => {
+  //     const strVal = JSON.stringify(val);
+  //     if (acc.findIndex((d) => d === strVal) === -1) acc.push(strVal);
+  //     return acc;
+  //   }, [])
+  //   .map((d) => JSON.parse(d));
+
+  const relations = [...new Map(
+    datas
+      .flatMap((data) => data[property])
+      .map((set) => [JSON.stringify(set), set])
+  ).values()];
+
+  console.log(relations);
+  // console.log(relations);
+  // buidler
+  // prisma save
+}
+/* Creation des relations */ 9 +
+  async function createRelations(datas) {
+    relation.forEach(async (prop) => await createRelation(datas, prop));
+  };
 
 /* Recup toute les images avec tempo */
 // synchroImage()
+async function start() {
+  console.log("A");
+  const cards = await getData("datas/test.json").then(async (datas) => {
+    // await createRelations(datas);
+    // NOTE: TEST
+    await createRelation(datas, relation[0]);
+    // sendCards(data)
+  });
+  // je creer mes relation et les pousses sur la bdd
 
-start();
+  // boucle sur mes datas (
+  // je creer ma query
+  // je pousse sur ma bdd )
+}
 
+start()
+  .then(async () => {
+    // Tout ce qu'il faut faire à la fin du programme
+    console.log("fin du programme");
+  })
+  // Si on a une erreur sur le programme
+  // On pourrai utiliser un gestionnaire histoire de pas perdre le fil, mais bon
+  .catch(async (e) => console.error(e));
 
 /**
  * main.js
  * start()
  * Aller chercher les infos - getInfos()
+ * 
+ * 
  *  On recup TOUT
  * Boucler sur les infos - buildRequestParams(infos: Toute les infos)
  *  const b = (p = 0, limit = 10000) =>
