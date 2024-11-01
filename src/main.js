@@ -1,5 +1,8 @@
 const fs = require("fs/promises");
 const { json } = require("stream/consumers");
+const { PrismaClient } = require("@prisma/client");
+
+const prisma = new PrismaClient();
 // import testJson from '../datas/test.json' assert { type: 'json' };
 
 /**
@@ -82,45 +85,199 @@ async function sendCards(cards) {
   // prisma
 }
 
-const relation = ["type", "card_sets", "archetype", "race"];
+// const relation = ["type",  "archetype", "race","card_sets"];
+
+const configRelation = [
+  // {
+  //   property: "type",
+  //   relation: "cardType",
+  //   db_name: "card_type",
+  //   db_where: "type",
+  //   mapping: {
+  //     type: "type",
+  //     humanReadableType: "humanReadableCardType",
+  //     frameType: "frameType",
+  //   },
+  // },
+  {
+    property: "card_sets",
+    relation: "cardSets",
+    db_name: "card_set",
+    mapping: {
+      setName: "set_name",
+      setCode: "set_code",
+      setRarity: "set_rarity",
+      setRarityCode: "set_rarity_code",
+      setPrice: "set_price",
+    },
+  },
+];
+
+const relation = {
+  type: "card_type",
+  archetype: "card_archetype",
+  race: "card_race",
+  card_sets: "card_set",
+};
+
+// je fais ici un tableau pour toujours pouvoir bouclé dans le cadre de plusieurs champs a inserer dans la methode setRelation
+const relationMappings = {
+  type: ["type", "human_readable-type", "frame_type"],
+  archetype: ["name"],
+  race: ["name"],
+  card_sets: [
+    "set_name",
+    "set_code",
+    "set_rarity",
+    "set_rarity_code",
+    "set_price",
+  ],
+};
+
+/**
+ * 
+  cardType
+    type => type
+    humanReadable => humandReadableCardType
+ * 
+ */
 
 /* Creation de 1 relation */
-async function createRelation(datas, property) {
+async function createRelation(datas, config) {
   // new Set() va renvoyer un objet de class Set , ici on veut avoir un tableau avec no type
   // Pour ca il faut suivre l'instruction ci dessous
   // suppression des doublons
+
   // const relations = [...new Set(datas.flatMap((data) => data[property]))]
   //   .reduce((acc, val) => {
   //     const strVal = JSON.stringify(val);
-  //     if (acc.findIndex((d) => d === strVal) === -1) acc.push(strVal);
+  //     if (acc.findIndex((d) => d === strVal) === -1 && val !== undefined)
+  //       acc.push(strVal);
   //     return acc;
   //   }, [])
   //   .map((d) => JSON.parse(d));
 
-  const relations = [...new Map(
-    datas
-      .flatMap((data) => data[property])
-      .map((set) => [JSON.stringify(set), set])
-  ).values()];
+  /*
+    [TYPE]
+    {
+      type : type,
+      humanReadable : humandReadableCardType
+    }
+      */
 
-  console.log(relations);
-  // console.log(relations);
-  // buidler
-  // prisma save
+  const entities = [
+    ...new Map(
+      datas
+        .filter((data) => data[config.property] !== undefined)
+        .map((data, i) => {
+          // externaliser ici sous une fonction et recusiviter sur les objects avec un second niveau 
+          // ATTENTION la recursive n'est pas ici je pense !!!
+          // il faut separer les fction
+          let value = data[config.property];
+
+          // Il devrait avoir une recursive ici si c'est un objet
+          // au moins un flat map
+          if (typeof value === "object")
+            data = value = data[config.property][i];
+
+          return [JSON.stringify(value), setEntity(data, config.mapping)];
+        })
+    ).values(),
+  ];
+
+  const promises = entities.map((entity) => {
+    return buildQuery(entity, config);
+  });
+
+  const res = await Promise.all(promises);
 }
-/* Creation des relations */ 9 +
-  async function createRelations(datas) {
-    relation.forEach(async (prop) => await createRelation(datas, prop));
-  };
+
+async function buildQuery(entity, config) {
+  const d = await prisma[config.relation].findFirst({
+    where: { type: entity[config.db_where] },
+  });
+
+  if (!d) {
+    console.log(
+      `creation de ${config.relation} avec la valeur ${entity[config.property]}`
+    );
+    return prisma[config.relation].create({
+      data: entity,
+    });
+  } else
+    console.error(
+      `il y a deja un ${config.relation} avec la valeur ${
+        entity[config.property]
+      }`
+    );
+
+  return new Promise((res) => res(null));
+}
+
+/* Creation des relations */
+async function createRelations(datas) {
+  // Object.entries(relation).map(
+  //   async ([prop, model]) => await createRelation(datas, prop)
+  // );
+  return configRelation.forEach(
+    async (config) => await createRelation(datas, config)
+  );
+}
+
+/*
+    @Return {
+      type : "Spell Card",
+      humanReadable : "Equip Spell"
+    }
+
+  mapping: {
+      type: 'type',
+      humanReadableType: 'humanReadableCardType'
+    },
+*/
+function setEntity(datas, mapping) {
+  // construire une entité
+  return Object.entries(mapping).reduce((entity, [key, value]) => {
+    entity[key] = datas?.[value] || null;
+    return entity;
+  }, {});
+  // console.log(datas);
+  // return datas;
+}
+
+async function setRelation(model, uniqueValues, fields) {
+  // const uniqueValues = [...new Set(data.map((item) => item[uniqueField]))];
+  // for (const value of uniqueValues) {
+  // uniqueValues.forEach(value => {
+  // });
+  // ------------------
+  // for (const filed of fields) {
+  //   uniqueValues.map(
+  //     async (value) =>
+  //       await prisma[model].upsert({
+  //         where: { filed: value },
+  //         create: { filed: value },
+  //         update: {},
+  //       })
+  //     );
+  //   }
+  // ------------------
+  // }
+  // console.log('model: '+ model);
+  // console.log('uniqueValue: '+ uniqueValues);
+  // console.log('fields: '+ fields);
+}
 
 /* Recup toute les images avec tempo */
 // synchroImage()
 async function start() {
   console.log("A");
-  const cards = await getData("datas/test.json").then(async (datas) => {
-    // await createRelations(datas);
+  console.time("e");
+
+  const cards = await getData("datas/fr.json").then(async (datas) => {
+    await createRelations(datas);
     // NOTE: TEST
-    await createRelation(datas, relation[0]);
+    // await createRelation(datas, configRelation[0]);
     // sendCards(data)
   });
   // je creer mes relation et les pousses sur la bdd
@@ -133,6 +290,7 @@ async function start() {
 start()
   .then(async () => {
     // Tout ce qu'il faut faire à la fin du programme
+    console.timeEnd("e");
     console.log("fin du programme");
   })
   // Si on a une erreur sur le programme
