@@ -101,12 +101,12 @@ async function buildQuery(entity, config) {
       console.log(
         `Sauvegarde ${config.relation} avec la valeur ${entity[config.where]}`
       );
-      return await prisma[relation].create({
+      return await prisma[config.relation].create({
         data: entity,
       });
     } catch (e) {
       console.error(
-        `Error Sauvegarde ${relation} avec la valeur ${entity[config.where]}`,
+        `Error Sauvegarde ${config.relation} avec la valeur ${entity[config.where]}`,
         e
       );
     }
