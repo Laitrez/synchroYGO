@@ -1,8 +1,8 @@
 const fs = require("fs/promises");
 const { json } = require("stream/consumers");
-const { PrismaClient } = require("@prisma/client");
+// const { PrismaClient } = require("@prisma/client");
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 // import testJson from '../datas/test.json' assert { type: 'json' };
 
 /**
@@ -169,18 +169,18 @@ async function createRelation(datas, config) {
     ...new Map(
       datas
         .filter((data) => data[config.property] !== undefined)
-        .map((data, i) => {
-          // externaliser ici sous une fonction et recusiviter sur les objects avec un second niveau 
-          // ATTENTION la recursive n'est pas ici je pense !!!
-          // il faut separer les fction
-          let value = data[config.property];
-
-          // Il devrait avoir une recursive ici si c'est un objet
-          // au moins un flat map
-          if (typeof value === "object")
-            data = value = data[config.property][i];
-
-          return [JSON.stringify(value), setEntity(data, config.mapping)];
+        //  on va juste mettre un if ici
+        .flatMap((data) => {
+          // on recup la data
+          const value = data[config.property];
+          // C'est un flatMap, donc il va mettre a plat les valeur retourner
+          // Donc si c'est un tableau on retourne le tableau
+          // Sinon on transforme la valeur en tableau pour le flatMap
+          const values = Array.isArray(value) ? value : [value];
+          return values.map((val) => [
+            JSON.stringify(val),
+            setEntity(val, config.mapping),
+          ]);
         })
     ).values(),
   ];
@@ -188,30 +188,39 @@ async function createRelation(datas, config) {
   const promises = entities.map((entity) => {
     return buildQuery(entity, config);
   });
+  try {
+    console.log(promises)
+    // const res = await Promise.all(promises);
+  } catch (e) {}
 
-  const res = await Promise.all(promises);
 }
 
 async function buildQuery(entity, config) {
-  const d = await prisma[config.relation].findFirst({
-    where: { type: entity[config.db_where] },
-  });
-
-  if (!d) {
-    console.log(
-      `creation de ${config.relation} avec la valeur ${entity[config.property]}`
-    );
-    return prisma[config.relation].create({
-      data: entity,
+  try {
+    const d = await prisma[config.relation].findFirst({
+      where: { type: entity[config.db_where] },
     });
-  } else
-    console.error(
-      `il y a deja un ${config.relation} avec la valeur ${
-        entity[config.property]
-      }`
-    );
 
-  return new Promise((res) => res(null));
+    if (!d) {
+      console.log(
+        `creation de ${config.relation} avec la valeur ${
+          entity[config.property]
+        }`
+      );
+      return await prisma[config.relation].create({
+        data: entity,
+      });
+    } else
+      console.warn(
+        `il y a deja un ${config.relation} avec la valeur ${
+          entity[config.property]
+        }`
+      );
+
+    return null;
+  } catch (e) {
+    console.error("erreur dans buildQuery", e);
+  }
 }
 
 /* Creation des relations */
@@ -274,7 +283,7 @@ async function start() {
   console.log("A");
   console.time("e");
 
-  const cards = await getData("datas/fr.json").then(async (datas) => {
+  const cards = await getData("datas/test.json").then(async (datas) => {
     await createRelations(datas);
     // NOTE: TEST
     // await createRelation(datas, configRelation[0]);

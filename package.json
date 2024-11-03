@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "dev:antho": "nodemon ./src/synchro-antho.js",
     "dev": "nodemon ./src/main.js",
     "migrate": "prisma migrate",
     "generate": "prisma generate"
