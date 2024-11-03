@@ -3,6 +3,8 @@ const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
+const defaultBatchSize = 100;
+
 const relationStore = new Map();
 const relationsConfiguration = [
   {
@@ -83,17 +85,23 @@ function buildEntities(datas, config) {
   ];
 }
 
-function buildQueries(entities, config) {
-  return entities.map(async (entity) => await buildQuery(entity, config));
+async function processInChunks(items, processFunction, batchSize = defaultBatchSize) {
+  let res = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const chunk = items.slice(i, i + batchSize);
+    const d = await Promise.allSettled(chunk.map(processFunction));
+    res = [...res, ...d.map(d => d.value)];
+  }
+  return res;
 }
 
-async function buildQuery(entity, config) {
+async function buildQuery(entity, config, pos = 1, total = 1) {
   const e = await getEntity(entity, config.relation);
   if (e) {
     console.warn(
       `FOUND la donnée ${config.relation} avec la valeur ${
         entity[config.where]
-      } exist deja`
+      } exist deja ${pos}/${total}`
     );
     return e;
   } else
@@ -106,20 +114,29 @@ async function buildQuery(entity, config) {
       });
     } catch (e) {
       console.error(
-        `Error Sauvegarde ${config.relation} avec la valeur ${entity[config.where]}`,
+        `Error Sauvegarde ${config.relation} avec la valeur ${
+          entity[config.where]
+        }`,
         e
       );
     }
 }
 
+async function saveRelations(entities, config) {
+  return await processInChunks(entities, (entity) =>
+    buildQuery(entity, config)
+  );
+}
+
 async function processRelations(datas) {
   for (const relation of relationsConfiguration) {
     const entities = buildEntities(datas, relation);
-    const queries = buildQueries(entities, relation);
-    const data = await Promise.all(queries);
+    const data = await saveRelations(entities, relation);
     // on pousse dans la map les relation pour
+    console.log(data);
+
     // retrouver leur ID sur la construction des cartes par la suite
-    relationStore.set(relation.relation, data);
+    // relationStore.set(relation.relation, data);
   }
 }
 
@@ -128,7 +145,7 @@ async function processCards(datas) {
 }
 
 async function start() {
-  const fullDatas = getDatasFile("datas/test.json");
+  const fullDatas = getDatasFile("datas/fr.json");
   await processRelations(fullDatas);
   await processCards(fullDatas);
 }
