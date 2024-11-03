@@ -99,7 +99,7 @@ async function buildQuery(entity, config) {
   } else
     try {
       console.log(
-        `Sauvegarde ${relation} avec la valeur ${entity[config.where]}`
+        `Sauvegarde ${config.relation} avec la valeur ${entity[config.where]}`
       );
       return await prisma[relation].create({
         data: entity,
@@ -136,7 +136,7 @@ async function start() {
 start()
   .then(async () => {
     // Tout ce qu'il faut faire à la fin du programme
-    // await prisma.$disconnect();
+    await prisma.$disconnect();
     console.log("fin du programme");
   })
   // Si on a une erreur sur le programme
