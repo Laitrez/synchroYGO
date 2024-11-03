@@ -17,19 +17,19 @@ const relationsConfiguration = [
       frameType: datas.frameType,
     }),
   },
-  {
-    property: "card_sets",
-    relation: "cardSets",
-    where: "setName",
-    // Faut retourner un cardSet
-    mapping: (datas) => ({
-      setName: datas.set_name,
-      setCode: datas.set_code,
-      setRarity: datas.set_rarity,
-      setRarityCode: datas.set_rarity_code,
-      setPrice: datas.set_price,
-    }),
-  },
+  // {
+  //   property: "card_sets",
+  //   relation: "cardSets",
+  //   where: "setName",
+  //   // Faut retourner un cardSet
+  //   mapping: (datas) => ({
+  //     setName: datas.set_name,
+  //     setCode: datas.set_code,
+  //     setRarity: datas.set_rarity,
+  //     setRarityCode: datas.set_rarity_code,
+  //     setPrice: datas.set_price,
+  //   }),
+  // },
 ];
 
 const cardConfiguration = {
@@ -85,12 +85,12 @@ function buildEntities(datas, config) {
   ];
 }
 
-async function processInChunks(items, processFunction, batchSize = defaultBatchSize) {
+async function chunks(items, processFunction, batchSize = defaultBatchSize) {
   let res = [];
   for (let i = 0; i < items.length; i += batchSize) {
     const chunk = items.slice(i, i + batchSize);
     const d = await Promise.allSettled(chunk.map(processFunction));
-    res = [...res, ...d.map(d => d.value)];
+    res = [...res, ...d.map((d) => d.value)];
   }
   return res;
 }
@@ -123,9 +123,7 @@ async function buildQuery(entity, config, pos = 1, total = 1) {
 }
 
 async function saveRelations(entities, config) {
-  return await processInChunks(entities, (entity) =>
-    buildQuery(entity, config)
-  );
+  return await chunks(entities, (entity) => buildQuery(entity, config), 100);
 }
 
 async function processRelations(datas) {
@@ -133,10 +131,8 @@ async function processRelations(datas) {
     const entities = buildEntities(datas, relation);
     const data = await saveRelations(entities, relation);
     // on pousse dans la map les relation pour
-    console.log(data);
-
     // retrouver leur ID sur la construction des cartes par la suite
-    // relationStore.set(relation.relation, data);
+    relationStore.set(relation.relation, data);
   }
 }
 
@@ -154,7 +150,7 @@ start()
   .then(async () => {
     // Tout ce qu'il faut faire à la fin du programme
     await prisma.$disconnect();
-    console.log("fin du programme");
+    console.log("fin du programme", relationStore);
   })
   // Si on a une erreur sur le programme
   // On pourrai utiliser un gestionnaire histoire de pas perdre le fil, mais bon
