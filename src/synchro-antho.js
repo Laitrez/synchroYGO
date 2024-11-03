@@ -56,6 +56,12 @@ function getDatasApi(url) {
   }
 }
 
+async function getEntity(entity, relation) {
+  return await prisma[relation].findFirst({
+    where: entity,
+  });
+}
+
 function buildEntities(datas, config) {
   return [
     ...new Map(
@@ -104,12 +110,6 @@ async function buildQuery(entity, config) {
         e
       );
     }
-}
-
-async function getEntity(entity, relation) {
-  return await prisma[relation].findFirst({
-    where: entity,
-  });
 }
 
 async function processRelations(datas) {
