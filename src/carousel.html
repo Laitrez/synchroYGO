@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+
+  <style>
+    :root {
+      --container-width: 300px;
+      --container-height: 500px;
+      --index: 0S;
+      --nb-item: 3;
+      --item-width: calc(var(--container-width) / var(--nb-item));
+    }
+    .container {
+      width: var(--container-width);
+      margin: auto;
+      position: relative;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    .wrapper {
+      position: relative;
+      box-sizing: border-box;
+      height: 100%;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      right: calc(var(--index) * var(--item-width));
+      transition: all 500ms;
+      height: 100px;
+    }
+    .item {
+      box-sizing: border-box;
+      width: calc(var(--container-width) / var(--nb-item));
+      height: 100%;
+      flex: 0 0 auto;
+    }
+    .green {
+      background: green;
+    }
+    .red {
+      background: red;
+    }
+    img {
+      border: solid black 1px;
+    }
+  </style>
+  <body>
+    <div class="container">
+      <div class="wrapper">
+        <div class="item green"></div>
+        <div class="item red"></div>
+        <div class="item green"></div>
+      </div>
+    </div>
+  </body>
+  <script>
+    console.log();
+    // setInterval(() => {
+    //   console.log(
+    //     getComputedStyle(document.documentElement).getPropertyValue("--index")
+    //   );
+
+    //   let i = getComputedStyle(document.documentElement).getPropertyValue(
+    //     "--index"
+    //   );
+
+    //   if (i > 4) i = 0;
+
+    //   document.documentElement.style.setProperty("--index", +i + 1);
+    // }, 2000);
+  </script>
+</html>
