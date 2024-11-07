@@ -7,42 +7,51 @@ const defaultBatchSize = 100;
 
 const relationStore = new Map();
 
-// relationStore.set("cardType", [
-//   {
-//     id: 176,
-//     type: "Spell Card",
-//     humanReadableType: "Equip Spell",
-//     frameType: "spell",
-//   },
-// ]);
+relationStore.set("cardType", [
+  {
+    id: 176,
+    type: "Spell Card",
+    humanReadableType: "Equip Spell",
+    frameType: "spell",
+  },
+]);
 
-const relationsConfiguration = [
-  {
-    property: "type",
-    relation: "cardType",
-    where: "type",
-    mapping: (datas) => ({
-      type: datas.type,
-      humanReadableType: datas.humanReadableCardType,
-      frameType: datas.frameType,
-    }),
-  },
-  {
-    property: "card_sets",
-    relation: "cardSets",
-    where: "setName",
-    // Faut retourner un cardSet
-    mapping: (datas) => ({
-      setName: datas.set_name,
-      setCode: datas.set_code,
-      setRarity: datas.set_rarity,
-      setRarityCode: datas.set_rarity_code,
-      setPrice: datas.set_price,
-    }),
-  },
-];
+const relationsConfiguration = new Map([
+  [
+    "type",
+    {
+      property: "type",
+      relation: "cardType",
+      logProperty: "type",
+      storeKeyProperty: "type",
+      mapping: (datas) => ({
+        type: datas.type,
+        humanReadableType: datas.humanReadableCardType,
+        frameType: datas.frameType,
+      }),
+    },
+  ],
+  [
+    "cardSets",
+    {
+      property: "card_sets",
+      relation: "cardSets",
+      logProperty: "setName",
+      storeKeyProperty: "setCode",
+      // Faut retourner un cardSet
+      mapping: (datas) => ({
+        setName: datas.set_name,
+        setCode: datas.set_code,
+        setRarity: datas.set_rarity,
+        setRarityCode: datas.set_rarity_code,
+        setPrice: datas.set_price,
+      }),
+    },
+  ],
+]);
 
 const cardConfiguration = {
+  relation: "card",
   mapping: (
     {
       name,
@@ -56,8 +65,10 @@ const cardConfiguration = {
       archetype,
       ygoprodeck_url,
       misc_info,
+      card_sets,
     },
-    relations
+    relationStore,
+    config // cardConfiguration
   ) => {
     const obj = {
       name,
@@ -67,14 +78,54 @@ const cardConfiguration = {
       beta_id: misc_info[0].beta_id,
       konami_id: misc_info[0].konami_id,
       md_rarity: misc_info[0].md_rarity,
+      cardTypeId: (() => {
+        const config = relationsConfiguration.get("type");
+        return cardConfiguration.relations.getIdby(
+          config.relation,
+          config.storeKeyProperty,
+          type,
+          relationStore
+        );
+      })(),
+      cardSets: (() => {
+        const config = relationsConfiguration.get("cardSets");
+        return cardConfiguration.relations.getMappedIds(
+          config.relation,
+          config.storeKeyProperty,
+          card_sets,
+          "set_code",
+          relationStore
+        );
+      })(),
     };
+    console.log(`obj`, obj.cardSets);
 
-    // C'est ici que l'on va voir pour recuperer les re lations
-    // on va commencer par le type uniquement
-    const t = relations.get("cardType").find((c) => c.type === type);
-    console.log("t", t);
-    obj["typeId"] = t.id;
     return obj;
+  },
+  relations: {
+    getIdby: (storekey, storekeyProperty, value, relationStore) => {
+      return relationStore
+        .get(storekey)
+        .find((c) => c[storekeyProperty] === value).id;
+    },
+    getMappedIds: (
+      storekey,
+      storekeyProperty,
+      array,
+      arrayProperty,
+      relationStore
+    ) => {
+      return {
+        connect: relationStore
+          .get(storekey)
+          .filter((set) =>
+            array.map((c) => c[arrayProperty]).includes(set[storekeyProperty])
+          )
+          .map((c) => ({
+            id: c.id,
+          })),
+      };
+    },
   },
 };
 
@@ -145,30 +196,35 @@ function buildRelations(datas, config) {
 }
 
 function buildCards(datas, relations, config) {
-  return datas.map((card) => config.mapping(card, relations));
+  return datas.map((card) => config.mapping(card, relations, config));
 }
 
-async function buildQuery(entity, config) {
-  const e = await getEntity(entity, config.relation);
+async function buildQuery(entity, config, ifExist = false) {
+  let e = ifExist;
+  if (ifExist) e = await getEntity(entity, config.relation);
   if (e) {
-    // console.warn(
-    //   `FOUND la donnée ${config.relation} avec la valeur ${
-    //     entity[config.where]
-    //   } exist deja`
-    // );
+    console.warn(
+      `FOUND la donnée ${config.relation} avec la valeur ${
+        entity[config.logProperty]
+      } exist deja`
+    );
     return e;
   } else
     try {
-      // console.log(
-      //   `Sauvegarde ${config.relation} avec la valeur ${entity[config.where]}`
-      // );
-      return await prisma[config.relation].create({
-        data: entity,
-      });
+      console.log(
+        `Sauvegarde ${config.relation} avec la valeur ${
+          entity[config.logProperty]
+        }`
+      );
+      return await prisma[config.relation]
+        .create({
+          data: entity,
+        })
+        .catch((e) => console.log(`e`, e));
     } catch (e) {
       console.error(
         `Error Sauvegarde ${config.relation} avec la valeur ${
-          entity[config.where]
+          entity[config.logProperty]
         }`,
         e
       );
@@ -180,7 +236,7 @@ async function saveRelations(entities, config) {
 }
 
 async function processRelations(datas) {
-  for (const relation of relationsConfiguration) {
+  for (const relation of relationsConfiguration.values()) {
     console.log(`Sauvegarde `, relation.relation);
 
     const entities = buildRelations(datas, relation);
@@ -195,8 +251,9 @@ async function processCards(datas) {
   console.log("Process card");
   const cards = buildCards(datas, relationStore, cardConfiguration);
   console.log(`cards`, cards);
+  const data = await saveRelations(cards, cardConfiguration);
 
-  // console.log("cards", cards);
+  console.log("cards", data);
   // là on va faire pareil que pour les relations, sauf que le builder est différents !!!
   // Il faut crée la cart builder() ->
   //    Le buildRelations() ne peut pas marcher ou ne sert à rien dans le cas des cartes
@@ -207,9 +264,9 @@ async function processCards(datas) {
 async function start() {
   const fullDatas = getDatasFile("datas/test.json");
   await processRelations(fullDatas);
-  // console.log("relationStore", relationStore);
+  console.log("relationStore", relationStore);
 
-  // await processCards(fullDatas);
+  await processCards(fullDatas);
 }
 
 start()
