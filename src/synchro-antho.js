@@ -231,7 +231,7 @@ async function buildQuery(entity, config, ifExist = false) {
     }
 }
 
-async function saveRelations(entities, config) {
+async function saveEntities(entities, config) {
   return await chunks(entities, (entity) => buildQuery(entity, config), 100);
 }
 
@@ -240,7 +240,7 @@ async function processRelations(datas) {
     console.log(`Sauvegarde `, relation.relation);
 
     const entities = buildRelations(datas, relation);
-    const data = await saveRelations(entities, relation);
+    const data = await saveEntities(entities, relation);
     // on pousse dans la map les relation pour
     // retrouver leur ID sur la construction des cartes par la suite
     relationStore.set(relation.relation, data);
@@ -251,7 +251,7 @@ async function processCards(datas) {
   console.log("Process card");
   const cards = buildCards(datas, relationStore, cardConfiguration);
   console.log(`cards`, cards);
-  const data = await saveRelations(cards, cardConfiguration);
+  const data = await saveEntities(cards, cardConfiguration);
 
   console.log("cards", data);
   // là on va faire pareil que pour les relations, sauf que le builder est différents !!!
