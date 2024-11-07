@@ -108,9 +108,9 @@ const cardConfiguration = {
       desc,
       name_en,
       ygoprodeck_url,
-      beta_id: misc_info.beta_id,
-      konami_id: misc_info.konami_id,
-      md_rarity: misc_info.md_rarity,
+      beta_id: misc_info.beta_id || 0,
+      konami_id: misc_info.konami_id || 0,
+      md_rarity: misc_info.md_rarity || "",
       cardTypeId: (() => {
         const config = relationsConfiguration.get("type");
         return cardConfiguration.getIdby(
@@ -136,7 +136,7 @@ const cardConfiguration = {
           config.storeKeyProperty,
           archetype,
           relationStore
-        );
+        ) || null;
       })(),
       cardSets: (() => {
         const config = relationsConfiguration.get("cardSets");
@@ -162,9 +162,10 @@ const cardConfiguration = {
     return obj;
   },
   getIdby: (storekey, storekeyProperty, value, relationStore) => {
+    
     return relationStore
       .get(storekey)
-      .find((c) => c[storekeyProperty] === value).id;
+      .find((c) => c[storekeyProperty] === value)?.id;
   },
   getMappedIds: (
     storekey,
@@ -177,13 +178,11 @@ const cardConfiguration = {
       connect: relationStore
         .get(storekey)
         .filter((set) =>
-          array
-            .map((c) => (arrayProperty ? c[arrayProperty] : c))
+          array?.map((c) => (arrayProperty ? c[arrayProperty] : c))
             .includes(set[storekeyProperty])
-        )
-        .map((c) => ({
+        )?.map((c) => ({
           id: c.id,
-        })),
+        })) || [],
     };
   },
 };
@@ -269,19 +268,19 @@ async function buildQuery(entity, config, ifExist = false) {
   let e = ifExist;
   if (ifExist) e = await getEntity(entity, config.entity);
   if (e) {
-    console.warn(
-      `FOUND la donnée ${config.entity} avec la valeur ${
-        entity[config.logProperty]
-      } exist deja`
-    );
+    // console.warn(
+    //   `FOUND la donnée ${config.entity} avec la valeur ${
+    //     entity[config.logProperty]
+    //   } exist deja`
+    // );
     return e;
   } else
     try {
-      console.log(
-        `Sauvegarde ${config.entity} avec la valeur ${
-          entity[config.logProperty]
-        }`
-      );
+      // console.log(
+      //   `Sauvegarde ${config.entity} avec la valeur ${
+      //     entity[config.logProperty]
+      //   }`
+      // );
       return await prisma[config.entity]
         .create({
           data: entity,
@@ -325,7 +324,7 @@ async function processCards(datas) {
 }
 
 async function start() {
-  let fullDatas = getDatasFile("datas/test.json");
+  let fullDatas = getDatasFile("datas/fr.json");
   fullDatas = cleanData(fullDatas);
   await processRelations(fullDatas);
   await processCards(fullDatas);
