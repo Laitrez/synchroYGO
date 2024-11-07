@@ -20,8 +20,8 @@ const relationsConfiguration = new Map([
   [
     "type",
     {
-      property: "type",
-      relation: "cardType",
+      incomingProperty: "type",
+      entity: "cardType",
       logProperty: "type",
       storeKeyProperty: "type",
       mapping: (datas) => ({
@@ -32,10 +32,46 @@ const relationsConfiguration = new Map([
     },
   ],
   [
+    "race",
+    {
+      incomingProperty: "race",
+      entity: "cardRace",
+      logProperty: "name",
+      storeKeyProperty: "name",
+      mapping: (datas) => ({
+        name: datas.race,
+      }),
+    },
+  ],
+  [
+    "archetype",
+    {
+      incomingProperty: "archetype",
+      entity: "cardArchetype",
+      logProperty: "name",
+      storeKeyProperty: "name",
+      mapping: (datas) => ({
+        name: datas.archetype,
+      }),
+    },
+  ],
+  [
+    "formats",
+    {
+      incomingProperty: "misc_info.formats",
+      entity: "formats",
+      logProperty: "name",
+      storeKeyProperty: "name",
+      mapping: (datas) => ({
+        name: datas,
+      }),
+    },
+  ],
+  [
     "cardSets",
     {
-      property: "card_sets",
-      relation: "cardSets",
+      incomingProperty: "card_sets",
+      entity: "cardSets",
       logProperty: "setName",
       storeKeyProperty: "setCode",
       // Faut retourner un cardSet
@@ -51,81 +87,104 @@ const relationsConfiguration = new Map([
 ]);
 
 const cardConfiguration = {
-  relation: "card",
+  entity: "card",
+  logProperty: "name",
   mapping: (
     {
       name,
       desc,
       name_en,
-      id,
       type,
-      humanReadableCardType,
-      frameType,
       race,
       archetype,
       ygoprodeck_url,
       misc_info,
       card_sets,
     },
-    relationStore,
-    config // cardConfiguration
+    relationStore
   ) => {
     const obj = {
-      name,
+      name: String(name).replaceAll('"', ""),
       desc,
       name_en,
       ygoprodeck_url,
-      beta_id: misc_info[0].beta_id,
-      konami_id: misc_info[0].konami_id,
-      md_rarity: misc_info[0].md_rarity,
+      beta_id: misc_info.beta_id,
+      konami_id: misc_info.konami_id,
+      md_rarity: misc_info.md_rarity,
       cardTypeId: (() => {
         const config = relationsConfiguration.get("type");
-        return cardConfiguration.relations.getIdby(
-          config.relation,
+        return cardConfiguration.getIdby(
+          config.entity,
           config.storeKeyProperty,
           type,
           relationStore
         );
       })(),
+      cardRaceId: (() => {
+        const config = relationsConfiguration.get("race");
+        return cardConfiguration.getIdby(
+          config.entity,
+          config.storeKeyProperty,
+          race,
+          relationStore
+        );
+      })(),
+      cardArchetypeId: (() => {
+        const config = relationsConfiguration.get("archetype");
+        return cardConfiguration.getIdby(
+          config.entity,
+          config.storeKeyProperty,
+          archetype,
+          relationStore
+        );
+      })(),
       cardSets: (() => {
         const config = relationsConfiguration.get("cardSets");
-        return cardConfiguration.relations.getMappedIds(
-          config.relation,
+        return cardConfiguration.getMappedIds(
+          config.entity,
           config.storeKeyProperty,
           card_sets,
           "set_code",
           relationStore
         );
       })(),
+      formats: (() => {
+        const config = relationsConfiguration.get("formats");
+        return cardConfiguration.getMappedIds(
+          config.entity,
+          config.storeKeyProperty,
+          misc_info.formats,
+          null,
+          relationStore
+        );
+      })(),
     };
-    console.log(`obj`, obj.cardSets);
-
     return obj;
   },
-  relations: {
-    getIdby: (storekey, storekeyProperty, value, relationStore) => {
-      return relationStore
+  getIdby: (storekey, storekeyProperty, value, relationStore) => {
+    return relationStore
+      .get(storekey)
+      .find((c) => c[storekeyProperty] === value).id;
+  },
+  getMappedIds: (
+    storekey,
+    storekeyProperty,
+    array,
+    arrayProperty,
+    relationStore
+  ) => {
+    return {
+      connect: relationStore
         .get(storekey)
-        .find((c) => c[storekeyProperty] === value).id;
-    },
-    getMappedIds: (
-      storekey,
-      storekeyProperty,
-      array,
-      arrayProperty,
-      relationStore
-    ) => {
-      return {
-        connect: relationStore
-          .get(storekey)
-          .filter((set) =>
-            array.map((c) => c[arrayProperty]).includes(set[storekeyProperty])
-          )
-          .map((c) => ({
-            id: c.id,
-          })),
-      };
-    },
+        .filter((set) =>
+          array
+            .map((c) => (arrayProperty ? c[arrayProperty] : c))
+            .includes(set[storekeyProperty])
+        )
+        .map((c) => ({
+          id: c.id,
+        })),
+    };
   },
 };
 
@@ -145,6 +204,10 @@ function getDatasApi(url) {
   } catch (err) {
     throw err;
   }
+}
+
+function cleanData(data) {
+  return data.map((d) => ({ ...d, misc_info: d.misc_info[0] }));
 }
 
 async function chunks(items, processFunction, batchSize = defaultBatchSize) {
@@ -172,20 +235,23 @@ new Map(
   ]
 )
 */
+// Construit les relations DTO et supprime les doublons
+function buildRelationDTOs(datas, config) {
+  const getValues = (datas, property) =>
+    property.split(".").reduce((acc, key) => acc?.[key], datas);
 
-function buildRelations(datas, config) {
   return [
     ...new Map(
       datas
-        .filter((data) => data[config.property])
+        .filter((datas) => getValues(datas, config.incomingProperty))
         .flatMap((datas) => {
-          let d = datas[config.property];
+          let values = getValues(datas, config.incomingProperty);
 
-          if (!Array.isArray(d)) {
-            d = [datas];
+          if (!Array.isArray(values)) {
+            values = [datas];
           }
 
-          return d.map((data) => {
+          return values.map((data) => {
             const b = config.mapping(data);
 
             return [JSON.stringify(b), b];
@@ -195,16 +261,16 @@ function buildRelations(datas, config) {
   ];
 }
 
-function buildCards(datas, relations, config) {
-  return datas.map((card) => config.mapping(card, relations, config));
+function buildCardDTOs(datas, relations, config) {
+  return datas.map((card) => config.mapping(card, relations));
 }
 
 async function buildQuery(entity, config, ifExist = false) {
   let e = ifExist;
-  if (ifExist) e = await getEntity(entity, config.relation);
+  if (ifExist) e = await getEntity(entity, config.entity);
   if (e) {
     console.warn(
-      `FOUND la donnée ${config.relation} avec la valeur ${
+      `FOUND la donnée ${config.entity} avec la valeur ${
         entity[config.logProperty]
       } exist deja`
     );
@@ -212,18 +278,18 @@ async function buildQuery(entity, config, ifExist = false) {
   } else
     try {
       console.log(
-        `Sauvegarde ${config.relation} avec la valeur ${
+        `Sauvegarde ${config.entity} avec la valeur ${
           entity[config.logProperty]
         }`
       );
-      return await prisma[config.relation]
+      return await prisma[config.entity]
         .create({
           data: entity,
         })
         .catch((e) => console.log(`e`, e));
     } catch (e) {
       console.error(
-        `Error Sauvegarde ${config.relation} avec la valeur ${
+        `Error Sauvegarde ${config.entity} avec la valeur ${
           entity[config.logProperty]
         }`,
         e
@@ -231,41 +297,37 @@ async function buildQuery(entity, config, ifExist = false) {
     }
 }
 
-async function saveEntities(entities, config) {
-  return await chunks(entities, (entity) => buildQuery(entity, config), 100);
+async function saveEntities(entities, config, isExist) {
+  return await chunks(
+    entities,
+    (entity) => buildQuery(entity, config, isExist),
+    100
+  );
 }
 
 async function processRelations(datas) {
   for (const relation of relationsConfiguration.values()) {
-    console.log(`Sauvegarde `, relation.relation);
+    const dtos = buildRelationDTOs(datas, relation);
+    const relations = await saveEntities(dtos, relation, true);
 
-    const entities = buildRelations(datas, relation);
-    const data = await saveEntities(entities, relation);
     // on pousse dans la map les relation pour
     // retrouver leur ID sur la construction des cartes par la suite
-    relationStore.set(relation.relation, data);
+    relationStore.set(relation.entity, relations);
   }
 }
 
 async function processCards(datas) {
   console.log("Process card");
-  const cards = buildCards(datas, relationStore, cardConfiguration);
-  console.log(`cards`, cards);
-  const data = await saveEntities(cards, cardConfiguration);
+  const cards = buildCardDTOs(datas, relationStore, cardConfiguration);
 
-  console.log("cards", data);
-  // là on va faire pareil que pour les relations, sauf que le builder est différents !!!
-  // Il faut crée la cart builder() ->
-  //    Le buildRelations() ne peut pas marcher ou ne sert à rien dans le cas des cartes
-  //    buildRelations() -> build les datas ET enleve les doublons
-  //    Pour les carte on veut juste build les datas
+  const data = await saveEntities(cards, cardConfiguration);
+  return data;
 }
 
 async function start() {
-  const fullDatas = getDatasFile("datas/test.json");
+  let fullDatas = getDatasFile("datas/test.json");
+  fullDatas = cleanData(fullDatas);
   await processRelations(fullDatas);
-  console.log("relationStore", relationStore);
-
   await processCards(fullDatas);
 }
 

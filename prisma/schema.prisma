@@ -8,16 +8,15 @@ datasource db {
 }
 
 model card {
-  id              Int           @id @default(autoincrement())
+  id              Int         @id @default(autoincrement())
   name            String
-  desc            String        @db.LongText
+  desc            String      @db.LongText
   name_en         String
-  ygoprodeck_url  String        @map("ygoprodecUrl")
-  beta_id         Int           @map("betaId")
-  konami_id       Int           @map("konamiId")
-  md_rarity       String        @map("mdRarity")
+  ygoprodeck_url  String      @map("ygoprodecUrl")
+  beta_id         Int         @map("betaId")
+  konami_id       Int         @map("konamiId")
+  md_rarity       String      @map("mdRarity")
   deck_cards      deckCards[]
-  cardFormats     cardFormats[]
   cardTypeId      Int?
   cardRaceId      Int?
   cardArchetypeId Int?
@@ -27,6 +26,7 @@ model card {
   archetype cardArchetype? @relation(fields: [cardArchetypeId], references: [id])
   userCards userCards[]
   cardSets  cardSets[]     @relation("CardSetsRelation")
+  formats   formats[]      @relation("CardFormatsRelation")
 }
 
 model cardSets {
@@ -79,20 +79,10 @@ model cardArchetype {
   @@map("card_archetype")
 }
 
-model cardFormats {
-  card      card    @relation(fields: [cardId], references: [id])
-  format    formats @relation(fields: [formatsId], references: [id])
-  cardId    Int
-  formatsId Int
-
-  @@unique([cardId, formatsId])
-  @@map("card_formats")
-}
-
 model formats {
-  id          Int           @id @default(autoincrement())
-  name        String
-  cardFormats cardFormats[]
+  id    Int    @id @default(autoincrement())
+  name  String
+  cards card[] @relation("CardFormatsRelation")
 }
 
 model decks {
