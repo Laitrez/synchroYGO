@@ -1,8 +1,8 @@
 const fs = require("fs/promises");
 const { json } = require("stream/consumers");
-// const { PrismaClient } = require("@prisma/client");
+const { PrismaClient } = require("@prisma/client");
 
-// const prisma = new PrismaClient();
+const prisma = new PrismaClient();
 // import testJson from '../datas/test.json' assert { type: 'json' };
 
 /**
@@ -90,6 +90,7 @@ async function sendCards(cards) {
 const configRelation = [
   // {
   //   property: "type",
+  //   logProperty :'type',
   //   relation: "cardType",
   //   db_name: "card_type",
   //   db_where: "type",
@@ -99,19 +100,71 @@ const configRelation = [
   //     frameType: "frameType",
   //   },
   // },
-  {
-    property: "card_sets",
-    relation: "cardSets",
-    db_name: "card_set",
-    mapping: {
-      setName: "set_name",
-      setCode: "set_code",
-      setRarity: "set_rarity",
-      setRarityCode: "set_rarity_code",
-      setPrice: "set_price",
-    },
-  },
+  // {
+  //   property: "card_sets",
+  //   logProperty:'setName',
+  //   relation: "cardSets",
+  //   db_name: "card_set",
+  //   mapping: {
+  //     setName: "set_name",
+  //     setCode: "set_code",
+  //     setRarity: "set_rarity",
+  //     setRarityCode: "set_rarity_code",
+  //     setPrice: "set_price",
+  //   },
+  // },
+  // {
+  //   property: "card_prices",
+  //   logProperty:'cardPrices',
+  //   relation: "cardPrice",
+  //   db_name: "card_prices",
+  //   mapping: {
+  //     cardmarketPrice: "cardmarket_price",
+  //     tcgplayerPrice: "tcgplayer_price",
+  //     ebayPrice: "ebay_price",
+  //     amazonPrice: "amazon_price",
+  //     coolstuffincPrice: "coolstuffinc_price",
+  //   },
+  // },
+  // {
+  //   property: "archetype",
+  //   logProperty:'card_archetype',
+  //   relation: "cardArchetype",
+  //   db_name: "card_archetype",
+  //   mapping: {
+  //     name: "archetype"
+  //   },
+  // },
+  // {
+  //   property: "race",
+  //   logProperty:'card_race',
+  //   relation: "cardRace",
+  //   db_name: "card_race",
+  //   mapping: {
+  //     name: "race"
+  //   },
+  // },
 ];
+
+const configCard = {
+  property: "card",
+  logProperty: "card",
+  relation: "card",
+  db_name: "card",
+  mapping:(card)=> {
+    // console.log(card);
+    const cardMapped={
+    name:card.name,
+    desc:card.desc,
+    name_en:card.name_en,
+    ygoprodecUrl:card.ygoprodeck_url,
+    betaId: card.misc_info[0].beta_id || '0',
+    konamiId: card.misc_info[0].konami_id,
+    mdRarity: card.misc_info[0].md_rarity
+    }
+    return cardMapped;
+  },
+};
 
 const relation = {
   type: "card_type",
@@ -125,6 +178,13 @@ const relationMappings = {
   type: ["type", "human_readable-type", "frame_type"],
   archetype: ["name"],
   race: ["name"],
+  card_price: [
+    "cardmarket_price",
+    "tcgplayer_price",
+    "ebay_price",
+    "amazon_price",
+    "coolstuffinc_price",
+  ],
   card_sets: [
     "set_name",
     "set_code",
@@ -165,6 +225,14 @@ async function createRelation(datas, config) {
     }
       */
 
+  // console.log( datas
+  // .filter((data) => data[config.property] ).flatMap((data) => {return [data[config.property]].map((val) => [
+  //   JSON.stringify(val),
+  //   setEntity(val, config.mapping),
+  // ])}));
+  // console.log( datas
+  //   .filter((data) => data[config.property] !== undefined ));
+
   const entities = [
     ...new Map(
       datas
@@ -176,27 +244,82 @@ async function createRelation(datas, config) {
           // C'est un flatMap, donc il va mettre a plat les valeur retourner
           // Donc si c'est un tableau on retourne le tableau
           // Sinon on transforme la valeur en tableau pour le flatMap
-          const values = Array.isArray(value) ? value : [value];
+          const values = Array.isArray(value) ? value : [data];
+          // let values;
+          // let key;
+          // if(Array.isArray(value)){
+          //   values= value;
+          //   key =value;
+          // } else{
+          //   values=[data];
+          //   key=data[config.property];
+          // }
+          const isArray = Array.isArray(value);
           return values.map((val) => [
-            JSON.stringify(val),
+            JSON.stringify(isArray ? val : value),
             setEntity(val, config.mapping),
           ]);
         })
     ).values(),
   ];
-
+  // console.log(entities);
   const promises = entities.map((entity) => {
     return buildQuery(entity, config);
   });
   try {
-    console.log(promises)
+    // console.log(promises)
+    const res = await Promise.all(promises);
+  } catch (e) {}
+}
+
+async function buildCards(datas) {
+  // const cards = [
+  //   ...new Map(
+  // datas
+  // console.log(datas);
+  const cards = datas.map((card) => configCard.mapping(card));
+  // datas.map((item=>(console.log(item))));
+  console.log(cards);
+  // const promisesCard=cards.map((card)=>(buildQuery(card,configCard)));
+
+  //  on va juste mettre un if ici
+  // .flatMap((data) => {
+  // on recup la data
+  // const value = data[config.property];
+  // C'est un flatMap, donc il va mettre a plat les valeur retourner
+  // Donc si c'est un tableau on retourne le tableau
+  // Sinon on transforme la valeur en tableau pour le flatMap
+  // const values = Array.isArray(value) ? value : [data];
+  // let values;
+  // let key;
+  // if(Array.isArray(value)){
+  //   values= value;
+  //   key =value;
+  // } else{
+  //   values=[data];
+  //   key=data[config.property];
+  // }
+  // const isArray=Array.isArray(value);
+  // return values.map((val) => [
+  //  JSON.stringify(isArray ?val:value),
+  // setEntity(val, config.mapping),
+  // ]);
+  // })
+  // ).values(),
+  // ];
+  // console.log(cards);
+  // const promises = entities.map((entity) => {
+  //   return buildQuery(entity, config);
+  // });
+  try {
+    // console.log(promises)
     // const res = await Promise.all(promises);
   } catch (e) {}
-
 }
 
 async function buildQuery(entity, config) {
   try {
+    // console.log(entity);
     const d = await prisma[config.relation].findFirst({
       where: { type: entity[config.db_where] },
     });
@@ -204,7 +327,7 @@ async function buildQuery(entity, config) {
     if (!d) {
       console.log(
         `creation de ${config.relation} avec la valeur ${
-          entity[config.property]
+          entity[config.logProperty]
         }`
       );
       return await prisma[config.relation].create({
@@ -213,9 +336,10 @@ async function buildQuery(entity, config) {
     } else
       console.warn(
         `il y a deja un ${config.relation} avec la valeur ${
-          entity[config.property]
+          entity[config.logProperty]
         }`
       );
+    // console.log('entity: ',entity);
 
     return null;
   } catch (e) {
@@ -228,9 +352,13 @@ async function createRelations(datas) {
   // Object.entries(relation).map(
   //   async ([prop, model]) => await createRelation(datas, prop)
   // );
-  return configRelation.forEach(
-    async (config) => await createRelation(datas, config)
-  );
+  for (const config of configRelation) {
+    await createRelation(datas, config);
+  }
+  // mise en place d'un for of car foreach n'aime pas l'async
+  // return configRelation.forEach(
+  //   async (config) => await createRelation(datas, config)
+  // );
 }
 
 /*
@@ -246,8 +374,9 @@ async function createRelations(datas) {
 */
 function setEntity(datas, mapping) {
   // construire une entité
+  // console.log('datas : ',datas);
   return Object.entries(mapping).reduce((entity, [key, value]) => {
-    entity[key] = datas?.[value] || null;
+    entity[key] = datas?.[value] || "";
     return entity;
   }, {});
   // console.log(datas);
@@ -288,6 +417,9 @@ async function start() {
     // NOTE: TEST
     // await createRelation(datas, configRelation[0]);
     // sendCards(data)
+  });
+  const datas = await getData("datas/test.json").then(async (datas) => {
+    await buildCards(datas);
   });
   // je creer mes relation et les pousses sur la bdd
 
