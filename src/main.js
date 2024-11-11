@@ -88,18 +88,18 @@ async function sendCards(cards) {
 // const relation = ["type",  "archetype", "race","card_sets"];
 
 const configRelation = [
-  // {
-  //   property: "type",
-  //   logProperty :'type',
-  //   relation: "cardType",
-  //   db_name: "card_type",
-  //   db_where: "type",
-  //   mapping: {
-  //     type: "type",
-  //     humanReadableType: "humanReadableCardType",
-  //     frameType: "frameType",
-  //   },
-  // },
+  {
+    property: "type",
+    logProperty :'type',
+    relation: "cardType",
+    db_name: "card_type",
+    db_where: "type",
+    mapping: {
+      type: "type",
+      humanReadableType: "humanReadableCardType",
+      frameType: "frameType",
+    },
+  },
   // {
   //   property: "card_sets",
   //   logProperty:'setName',
@@ -126,32 +126,35 @@ const configRelation = [
   //     coolstuffincPrice: "coolstuffinc_price",
   //   },
   // },
-  // {
-  //   property: "archetype",
-  //   logProperty:'card_archetype',
-  //   relation: "cardArchetype",
-  //   db_name: "card_archetype",
-  //   mapping: {
-  //     name: "archetype"
-  //   },
-  // },
-  // {
-  //   property: "race",
-  //   logProperty:'card_race',
-  //   relation: "cardRace",
-  //   db_name: "card_race",
-  //   mapping: {
-  //     name: "race"
-  //   },
-  // },
+  {
+    property: "archetype",
+    logProperty:'card_archetype',
+    relation: "cardArchetype",
+    db_name: "card_archetype",
+    mapping: {
+      name: "archetype"
+    },
+  },
+  {
+    property: "race",
+    logProperty:'card_race',
+    relation: "cardRace",
+    db_name: "card_race",
+    mapping: {
+      name: "race"
+    },
+  },
 ];
 
+
+
+const relationCard=[];
 const configCard = {
   property: "card",
   logProperty: "card",
   relation: "card",
   db_name: "card",
-  mapping:(card)=> {
+  mapping:(card,relations)=> {
     // console.log(card);
     const cardMapped={
     name:card.name,
@@ -160,12 +163,38 @@ const configCard = {
     ygoprodecUrl:card.ygoprodeck_url,
     betaId: card.misc_info[0].beta_id || '0',
     konamiId: card.misc_info[0].konami_id,
-    mdRarity: card.misc_info[0].md_rarity
-    }
+    mdRarity: card.misc_info[0].md_rarity,
+
+  }
+  // console.log("relations.cardType:", relations);
+  // console.log("card.type:", card.type);
+  // relations[0].map((item,i)=>(console.log(`item ${i} : ${JSON.stringify(item)}`)));
+  // if (card.type) {
+    // cardMapped.cardTypeId = relations.map((relation)=>(relation.find(item => item.type === card.type)?.id || ''));
+    cardMapped.cardTypeId = relations.cardType.find(item => item.type === card.type)?.id || '';  
+  // }
+  // if (card.archetype) {
+    cardMapped.archetypeId = relations.cardArchetype.find(item => item.name === card.archetype)?.id || '';
+  // }
+  // if (card.race) {
+    cardMapped.raceId = relations.cardRace.find(item => item.name === card.race)?.id || '';
+  // }
+  console.log(cardMapped);
     return cardMapped;
   },
 };
+/*
+tab = {
+type:[
+  {},{},{}
+],
+archetype:[
+  {},{},{}
+]
+}
 
+
+*/
 const relation = {
   type: "card_type",
   archetype: "card_archetype",
@@ -267,19 +296,20 @@ async function createRelation(datas, config) {
     return buildQuery(entity, config);
   });
   try {
-    // console.log(promises)
     const res = await Promise.all(promises);
+    // console.log('res',res)
+    return res;
   } catch (e) {}
 }
 
-async function buildCards(datas) {
+async function buildCards(datas,relations) {
   // const cards = [
   //   ...new Map(
   // datas
   // console.log(datas);
-  const cards = datas.map((card) => configCard.mapping(card));
+  const cards = datas.map((card) => configCard.mapping(card,relations));
   // datas.map((item=>(console.log(item))));
-  console.log(cards);
+  // console.log(cards);
   // const promisesCard=cards.map((card)=>(buildQuery(card,configCard)));
 
   //  on va juste mettre un if ici
@@ -319,9 +349,10 @@ async function buildCards(datas) {
 
 async function buildQuery(entity, config) {
   try {
-    // console.log(entity);
+    // console.log( ` ici : ${config.db_where}: ${entity[config.db_where]}`);
     const d = await prisma[config.relation].findFirst({
-      where: { type: entity[config.db_where] },
+      // where: { type: entity[config.db_where] },
+      where:entity
     });
 
     if (!d) {
@@ -333,15 +364,16 @@ async function buildQuery(entity, config) {
       return await prisma[config.relation].create({
         data: entity,
       });
-    } else
+    } else{
       console.warn(
         `il y a deja un ${config.relation} avec la valeur ${
           entity[config.logProperty]
-        }`
+        } : ${JSON.stringify(d)}`
       );
+    }
     // console.log('entity: ',entity);
 
-    return null;
+    return d;
   } catch (e) {
     console.error("erreur dans buildQuery", e);
   }
@@ -349,16 +381,20 @@ async function buildQuery(entity, config) {
 
 /* Creation des relations */
 async function createRelations(datas) {
+  let createdCards = {};
   // Object.entries(relation).map(
   //   async ([prop, model]) => await createRelation(datas, prop)
   // );
   for (const config of configRelation) {
-    await createRelation(datas, config);
+    const card =await createRelation(datas, config);
+    createdCards[config.relation]=card;
+    // relationCard[config.relation].push(card);
   }
   // mise en place d'un for of car foreach n'aime pas l'async
   // return configRelation.forEach(
   //   async (config) => await createRelation(datas, config)
   // );
+return createdCards;
 }
 
 /*
@@ -412,14 +448,15 @@ async function start() {
   console.log("A");
   console.time("e");
 
-  const cards = await getData("datas/test.json").then(async (datas) => {
-    await createRelations(datas);
+  const relations = await getData("datas/test.json").then(async (datas) => {
+    return await createRelations(datas);
     // NOTE: TEST
     // await createRelation(datas, configRelation[0]);
     // sendCards(data)
   });
+  // console.log('card',relations);
   const datas = await getData("datas/test.json").then(async (datas) => {
-    await buildCards(datas);
+    await buildCards(datas,relations);
   });
   // je creer mes relation et les pousses sur la bdd
 
@@ -459,73 +496,4 @@ start()
  * RG: pouvoir regler le temps de traitement (200 * 60 * 1000 line/min)
  * 
  * 
- Faut faire quoi ?
-         {
-      "id": 37478723,
-      "name": "\"Armes Nobles Inferno - Durendal\"",
-      "type": "Spell Card",
-      "humanReadableCardType": "Equip Spell",
-      "frameType": "spell",
-      "desc": "Tant que cette carte est \u00e9quip\u00e9e \u00e0 un monstre : vous pouvez ajouter 1 monstre FEU Guerrier de max. Niveau 5 depuis votre Deck \u00e0 votre main, puis d\u00e9truisez cette carte. Si cette carte est envoy\u00e9e au Cimeti\u00e8re parce que le monstre \u00e9quip\u00e9 est envoy\u00e9 au Cimeti\u00e8re : vous pouvez cibler 1 monstre FEU Guerrier de max. Niveau 5 dans votre Cimeti\u00e8re ; Invoquez-le Sp\u00e9cialement, et aussi, vous ne pouvez pas Invoquer Sp\u00e9cialement de monstres (monstres Guerrier exclus) le reste du tour. Vous ne pouvez utiliser qu'1 effet de \"\"Armes Nobles Inferno - Durendal\"\" par tour, et uniquement une fois le tour.",
-      "race": "Equip",
-      "name_en": "\"Infernoble Arms - Durendal\"",
-      "archetype": "Noble Knight",
-      "ygoprodeck_url": "https://ygoprodeck.com/card/infernoble-arms-durendal-10991",
-      "card_sets": [
-        {
-          "set_name": "2021 Tin of Ancient Battles",
-          "set_code": "MP21-EN136",
-          "set_rarity": "Super Rare",
-          "set_rarity_code": "(SR)",
-          "set_price": "0"
-        },
-        {
-          "set_name": "Amazing Defenders",
-          "set_code": "AMDE-EN042",
-          "set_rarity": "Rare",
-          "set_rarity_code": "(R)",
-          "set_price": "0"
-        },
-        {
-          "set_name": "Rise of the Duelist",
-          "set_code": "ROTD-EN053",
-          "set_rarity": "Ultra Rare",
-          "set_rarity_code": "(UR)",
-          "set_price": "0"
-        }
-      ],
-      "card_images": [
-        {
-          "id": 37478723,
-          "image_url": "https://images.ygoprodeck.com/images/cards/37478723.jpg", "image_url_small": "https://images.ygoprodeck.com/images/cards_small/37478723.jpg",
-          "image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/37478723.jpg"
-        }
-      ],
-      "card_prices": [
-        {
-          "cardmarket_price": "0.14",
-          "tcgplayer_price": "0.15",
-          "ebay_price": "0.99",
-          "amazon_price": "2.96",
-          "coolstuffinc_price": "0.00"
-        }
-      ],
-      "misc_info": [
-        {
-          "beta_name": "\"Flame Noble Arms - Durendal\"",
-          "views": 492031,
-          "viewsweek": 2958,
-          "upvotes": 10,
-          "downvotes": 12,
-          "formats": ["TCG", "OCG", "Master Duel"],
-          "beta_id": 101101053,
-          "tcg_date": "2020-08-06",
-          "ocg_date": "2020-04-18",
-          "konami_id": 15287,
-          "has_effect": 1,
-          "md_rarity": "Rare"
-        }
-      ]
-    },
- * 
- */
+**/
