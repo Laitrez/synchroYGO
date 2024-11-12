@@ -1,6 +1,7 @@
 const fs = require("fs/promises");
 const { json } = require("stream/consumers");
 const { PrismaClient } = require("@prisma/client");
+const { format } = require("path");
 
 const prisma = new PrismaClient();
 // import testJson from '../datas/test.json' assert { type: 'json' };
@@ -100,19 +101,29 @@ const configRelation = [
       frameType: "frameType",
     },
   },
-  // {
-  //   property: "card_sets",
-  //   logProperty:'setName',
-  //   relation: "cardSets",
-  //   db_name: "card_set",
-  //   mapping: {
-  //     setName: "set_name",
-  //     setCode: "set_code",
-  //     setRarity: "set_rarity",
-  //     setRarityCode: "set_rarity_code",
-  //     setPrice: "set_price",
-  //   },
-  // },
+  {
+    property: "card_sets",
+    logProperty:'cardSets',
+    relation: "cardSets",
+    db_name: "card_set",
+    mapping: {
+      setName: "set_name",
+      setCode: "set_code",
+      setRarity: "set_rarity",
+      setRarityCode: "set_rarity_code",
+      setPrice: "set_price",
+    },
+  },
+  {
+    // property: 'misc_info[0].formats',
+    property: 'formats',
+    logProperty:'formats',
+    relation: "formats",
+    db_name: "formats",
+    mapping: {
+      formats: "formats",
+    },
+  },
   // {
   //   property: "card_prices",
   //   logProperty:'cardPrices',
@@ -154,8 +165,9 @@ const configCard = {
   logProperty: "card",
   relation: "card",
   db_name: "card",
+  formats:"formats",
   mapping:(card,relations)=> {
-    // console.log(card);
+    // console.log('card : ',card);
     const cardMapped={
     name:card.name,
     desc:card.desc,
@@ -164,7 +176,7 @@ const configCard = {
     betaId: card.misc_info[0].beta_id || '0',
     konamiId: card.misc_info[0].konami_id,
     mdRarity: card.misc_info[0].md_rarity,
-
+    
   }
   // console.log("relations.cardType:", relations);
   // console.log("card.type:", card.type);
@@ -172,16 +184,26 @@ const configCard = {
   // if (card.type) {
     // cardMapped.cardTypeId = relations.map((relation)=>(relation.find(item => item.type === card.type)?.id || ''));
     cardMapped.cardTypeId = relations.cardType.find(item => item.type === card.type)?.id || '';  
-  // }
-  // if (card.archetype) {
-    cardMapped.archetypeId = relations.cardArchetype.find(item => item.name === card.archetype)?.id || '';
-  // }
-  // if (card.race) {
-    cardMapped.raceId = relations.cardRace.find(item => item.name === card.race)?.id || '';
-  // }
-  console.log(cardMapped);
-    return cardMapped;
-  },
+    // }
+    // if (card.archetype) {
+      cardMapped.archetypeId = relations.cardArchetype.find(item => item.name === card.archetype)?.id || '';
+      // }
+      // if (card.race) {
+        cardMapped.raceId = relations.cardRace.find(item => item.name === card.race)?.id || '';
+        // }
+        cardMapped.cardSets = card.card_sets
+        .map(set => relations.cardSets.find(item => item.setCode === set.set_code)?.id);  
+        
+        
+        
+        // cardMapped.cardSets = card.card_sets
+        // .map(set => console.log(set));
+        // cardMapped.formats=card.formats.map(forma=>relations.formats.find(item => forma === item.name)?.id);
+        cardMapped.formats=card.misc_info[0].formats.map(forma=>relations.formats.find(item=>forma===item.name)?.id);
+        
+        console.log(cardMapped);
+        return cardMapped;
+      },
 };
 /*
 tab = {
@@ -200,6 +222,7 @@ const relation = {
   archetype: "card_archetype",
   race: "card_race",
   card_sets: "card_set",
+  formats:"formats"
 };
 
 // je fais ici un tableau pour toujours pouvoir bouclé dans le cadre de plusieurs champs a inserer dans la methode setRelation
@@ -221,6 +244,9 @@ const relationMappings = {
     "set_rarity_code",
     "set_price",
   ],
+  formats:[
+    "formats",
+  ]
 };
 
 /**
@@ -230,6 +256,25 @@ const relationMappings = {
     humanReadable => humandReadableCardType
  * 
  */
+
+/*creation des formats */
+async function createFormat(datas,config){
+  const formats= [...new Set(datas.flatMap((data) => data.misc_info[0].formats))];
+  // console.log(formats);
+  // d=formats.map((form)=>console.log('formData : ',form));
+  d=formats.map((form)=>buildQuery({name:form},config));
+  console.log(d);
+  // const promises = formats.map((entity) => {
+  //   return buildQuery(entity, config);
+  // });
+  // try {
+  //   const res = await Promise.all(promises);
+  //   // console.log('res',res)
+  //   return res;
+  // } catch (e) {}
+  const res = await Promise.all(d);
+  return res;
+}
 
 /* Creation de 1 relation */
 async function createRelation(datas, config) {
@@ -261,6 +306,10 @@ async function createRelation(datas, config) {
   // ])}));
   // console.log( datas
   //   .filter((data) => data[config.property] !== undefined ));
+// datas.map((data) => data.misc_info[0].formats.flatMap((data)=>(console.log(data))));
+
+const getNestedValues = (obj, chem) => 
+  chem.replace(/\[(\d+)\]/g, '.$1').split('.').reduce((acc, key) => acc?.[key], obj);
 
   const entities = [
     ...new Map(
@@ -269,7 +318,7 @@ async function createRelation(datas, config) {
         //  on va juste mettre un if ici
         .flatMap((data) => {
           // on recup la data
-          const value = data[config.property];
+          const value = data[config.property] ;
           // C'est un flatMap, donc il va mettre a plat les valeur retourner
           // Donc si c'est un tableau on retourne le tableau
           // Sinon on transforme la valeur en tableau pour le flatMap
@@ -307,6 +356,7 @@ async function buildCards(datas,relations) {
   //   ...new Map(
   // datas
   // console.log(datas);
+  // console.log('relations : ',relations);
   const cards = datas.map((card) => configCard.mapping(card,relations));
   // datas.map((item=>(console.log(item))));
   // console.log(cards);
@@ -350,9 +400,10 @@ async function buildCards(datas,relations) {
 async function buildQuery(entity, config) {
   try {
     // console.log( ` ici : ${config.db_where}: ${entity[config.db_where]}`);
+    // console.log('entity ! : ',entity);
     const d = await prisma[config.relation].findFirst({
       // where: { type: entity[config.db_where] },
-      where:entity
+      where: entity
     });
 
     if (!d) {
@@ -371,7 +422,7 @@ async function buildQuery(entity, config) {
         } : ${JSON.stringify(d)}`
       );
     }
-    // console.log('entity: ',entity);
+    console.log('entity: ',entity);
 
     return d;
   } catch (e) {
@@ -386,7 +437,8 @@ async function createRelations(datas) {
   //   async ([prop, model]) => await createRelation(datas, prop)
   // );
   for (const config of configRelation) {
-    const card =await createRelation(datas, config);
+    // console.log(config.relation);
+    const card =config.relation==='formats'? await createFormat(datas,config):await createRelation(datas, config);
     createdCards[config.relation]=card;
     // relationCard[config.relation].push(card);
   }
@@ -394,6 +446,7 @@ async function createRelations(datas) {
   // return configRelation.forEach(
   //   async (config) => await createRelation(datas, config)
   // );
+  // console.log(createdCards);
 return createdCards;
 }
 
