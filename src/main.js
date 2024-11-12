@@ -124,19 +124,19 @@ const configRelation = [
       formats: "formats",
     },
   },
-  // {
-  //   property: "card_prices",
-  //   logProperty:'cardPrices',
-  //   relation: "cardPrice",
-  //   db_name: "card_prices",
-  //   mapping: {
-  //     cardmarketPrice: "cardmarket_price",
-  //     tcgplayerPrice: "tcgplayer_price",
-  //     ebayPrice: "ebay_price",
-  //     amazonPrice: "amazon_price",
-  //     coolstuffincPrice: "coolstuffinc_price",
-  //   },
-  // },
+  {
+    property: "card_prices",
+    logProperty:'cardPrices',
+    relation: "cardPrice",
+    db_name: "card_prices",
+    mapping: {
+      cardmarketPrice: "cardmarket_price",
+      tcgplayerPrice: "tcgplayer_price",
+      ebayPrice: "ebay_price",
+      amazonPrice: "amazon_price",
+      coolstuffincPrice: "coolstuffinc_price",
+    },
+  },
   {
     property: "archetype",
     logProperty:'card_archetype',
@@ -165,7 +165,6 @@ const configCard = {
   logProperty: "card",
   relation: "card",
   db_name: "card",
-  formats:"formats",
   mapping:(card,relations)=> {
     // console.log('card : ',card);
     const cardMapped={
@@ -193,6 +192,11 @@ const configCard = {
         // }
         cardMapped.cardSets = card.card_sets
         .map(set => relations.cardSets.find(item => item.setCode === set.set_code)?.id);  
+        
+        cardMapped.cardPrices = card.card_prices
+        .map(set => relations.cardPrice.find(item=>item.cardmarketPrice === set.cardmarket_price && item.tcgplayerPrice === set.tcgplayer_price )?.id);  
+        // .map(set => console.log(relations.cardPrice));  
+        // .map(set => relations.cardPrices.find(item => item.setCode === set.set_code)?.id);  
         
         
         
@@ -263,7 +267,7 @@ async function createFormat(datas,config){
   // console.log(formats);
   // d=formats.map((form)=>console.log('formData : ',form));
   d=formats.map((form)=>buildQuery({name:form},config));
-  console.log(d);
+  // console.log(d);
   // const promises = formats.map((entity) => {
   //   return buildQuery(entity, config);
   // });
@@ -422,7 +426,7 @@ async function buildQuery(entity, config) {
         } : ${JSON.stringify(d)}`
       );
     }
-    console.log('entity: ',entity);
+    // console.log('entity: ',entity);
 
     return d;
   } catch (e) {
