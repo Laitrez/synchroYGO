@@ -115,8 +115,8 @@ const configRelation = [
     },
   },
   {
-    // property: 'misc_info[0].formats',
-    property: 'formats',
+    property: 'misc_info[0].formats',
+    // property: 'formats',
     logProperty:'formats',
     relation: "formats",
     db_name: "formats",
@@ -308,21 +308,31 @@ async function createRelation(datas, config) {
   //   JSON.stringify(val),
   //   setEntity(val, config.mapping),
   // ])}));
-  // console.log( datas
-  //   .filter((data) => data[config.property] !== undefined ));
-// datas.map((data) => data.misc_info[0].formats.flatMap((data)=>(console.log(data))));
+  // datas.map((data) => data.misc_info[0].formats.flatMap((data)=>(console.log(data))));
+  
+  const getNestedValues = (obj, chem) => {
+    
+    d= chem.replace(/\[(\d+)\]/g, '.$1').split('.').reduce((acc, key) => acc?.[key], obj);
+    //  console.log(d); 
+    return d;
+  }
 
-const getNestedValues = (obj, chem) => 
-  chem.replace(/\[(\d+)\]/g, '.$1').split('.').reduce((acc, key) => acc?.[key], obj);
 
-  const entities = [
+  // console.log( 'data : ', datas
+  //   .filter((data) =>getNestedValues(data,config.property)));
+  
+  
+    const entities = [
     ...new Map(
       datas
-        .filter((data) => data[config.property] !== undefined)
+        // .filter((data) => data[config.property] !== undefined)'---->legacy
+        .filter((data) => getNestedValues(data,config.property) !== undefined)
         //  on va juste mettre un if ici
         .flatMap((data) => {
+          // console.log('data :' ,data);
           // on recup la data
-          const value = data[config.property] ;
+          // const value = data[config.property] ;`--->leacy
+          const value = getNestedValues(data,config.property) ;
           // C'est un flatMap, donc il va mettre a plat les valeur retourner
           // Donc si c'est un tableau on retourne le tableau
           // Sinon on transforme la valeur en tableau pour le flatMap
@@ -442,7 +452,8 @@ async function createRelations(datas) {
   // );
   for (const config of configRelation) {
     // console.log(config.relation);
-    const card =config.relation==='formats'? await createFormat(datas,config):await createRelation(datas, config);
+    // const card =config.relation==='formats'? await createFormat(datas,config):await createRelation(datas, config);-->legacy
+    const card =await createRelation(datas, config);
     createdCards[config.relation]=card;
     // relationCard[config.relation].push(card);
   }
@@ -469,8 +480,8 @@ function setEntity(datas, mapping) {
   // construire une entité
   // console.log('datas : ',datas);
   return Object.entries(mapping).reduce((entity, [key, value]) => {
-    entity[key] = datas?.[value] || "";
-    return entity;
+    entity[key==='formats'?'name':key] = datas?.[value] || (key==='formats'?datas:'') ;
+    return entity; 
   }, {});
   // console.log(datas);
   // return datas;
