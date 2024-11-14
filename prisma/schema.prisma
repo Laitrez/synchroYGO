@@ -12,10 +12,10 @@ model card {
   name            String
   desc            String      @db.LongText
   name_en         String
-  ygoprodeck_url  String      @map("ygoprodecUrl")
-  beta_id         Int         @map("betaId")
-  konami_id       Int         @map("konamiId")
-  md_rarity       String      @map("mdRarity")
+  ygoprodecUrl    String      @map("ygoprodeck_url")
+  betaId          Int         @map("beta_id")
+  konamiId        Int         @map("konami_id")
+  mdRarity        String      @map("md_rarity")
   deck_cards      deckCards[]
   cardTypeId      Int?
   cardRaceId      Int?
@@ -44,11 +44,11 @@ model cardSets {
 model cardPrice {
   id Int @id @default(autoincrement())
 
-  cardmarketPrice   Int @map("cardmarket_price")
-  tcgplayerPrice    Int @map("tcgplayer_price")
-  ebayPrice         Int @map("ebay_price")
-  amazonPrice       Int @map("amazon_price")
-  coolstuffincPrice Int @map("coolstuffinc_price")
+  cardmarketPrice   String @map("cardmarket_price")
+  tcgplayerPrice    String @map("tcgplayer_price")
+  ebayPrice         String @map("ebay_price")
+  amazonPrice       String @map("amazon_price")
+  coolstuffincPrice String @map("coolstuffinc_price")
 
   @@map("card_price")
 }
