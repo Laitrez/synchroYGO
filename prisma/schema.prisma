@@ -27,6 +27,7 @@ model card {
   userCards userCards[]
   cardSets  cardSets[]     @relation("CardSetsRelation")
   formats   formats[]      @relation("CardFormatsRelation")
+  cardPrice   cardPrice[]      @relation("CardPriceRelation")
 }
 
 model cardSets {
@@ -49,6 +50,7 @@ model cardPrice {
   ebayPrice         String @map("ebay_price")
   amazonPrice       String @map("amazon_price")
   coolstuffincPrice String @map("coolstuffinc_price")
+  cards card[] @relation("CardPriceRelation")
 
   @@map("card_price")
 }

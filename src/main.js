@@ -64,9 +64,9 @@ const configRelation = [
   },
   {
     property: "card_prices",
-    logProperty:'cardPrices',
+    logProperty:'cardPrice',
     relation: "cardPrice",
-    db_name: "card_prices",
+    db_name: "card_price",
     mapping: {
       cardmarketPrice: "cardmarket_price",
       tcgplayerPrice: "tcgplayer_price",
@@ -125,12 +125,16 @@ const configCard = {
   card.card_sets
         .map(set => relations.cardSets.find(item => item.setCode === set.set_code)?.id).map((id)=>({id}))};  
         
-//  cardMapped.cardPrices = card.card_prices
-//         .map(set => relations.cardPrice.find(item=>item.cardmarketPrice === set.cardmarket_price && item.tcgplayerPrice === set.tcgplayer_price )?.id);  
- cardMapped.formats={
+ cardMapped.cardPrice = {
+  connect:
+  card.card_prices
+         .map(set => relations.cardPrice.find(item=>item.cardmarketPrice === set.cardmarket_price && item.tcgplayerPrice === set.tcgplayer_price )?.id).map((id)=>({id}))};  
+ 
+ 
+         cardMapped.formats={
   connect:card.misc_info[0].formats.map(forma=>relations.formats.find(item=>forma===item.name)?.id).map((id)=>({id}))};
         
- console.log(cardMapped);
+//  console.log(cardMapped);
  return cardMapped;
       },
 };
@@ -219,9 +223,22 @@ async function createRelation(datas, config) {
   try {
     const res = await Promise.all(promises);
     // console.log('res',res)
+    // const res = await chunk(promises,100);
     return res;
   } catch (e) {}
 }
+  
+async function chunk(ite,tab){
+  var tot=[];
+  for (let i = 0; i < tab.length; i+=ite) {
+        
+    const datasSliced=tab.slice(i,ite+i);
+    const rep=await Promise.all(datasSliced);
+    tot.push(...rep.map((val)=>val.value));
+    // console.log(tot);
+  }
+  return tot;
+};
 
 async function buildCards(datas,relations) {
   const cards = datas.map((card) => configCard.mapping(card,relations));
@@ -231,6 +248,7 @@ async function buildCards(datas,relations) {
     try {
     // console.log(promises)
     const res = await Promise.all(promisesCard);
+    // const re = await chunk(promisesCard,100);  
   } catch (e) {}
 }
 
@@ -248,13 +266,22 @@ async function buildQuery(entity, config) {
         some: {
           id: { in: entity.formats.connect.map((format) => format.id) },
         },
-      }
+      };
       // console.log(entity.cardSets);
       searchOptions.where.cardSets = {
         some: {
           id: { in: entity.cardSets.connect.map((cardset) => cardset.id) },
         },
-      }
+      };
+
+      searchOptions.where.cardPrice = {
+        some: {
+          id: { in: entity.cardPrice.connect.map((price) => price.id) },
+        },
+      };
+
+
+
     };
 
     const d = await prisma[config.relation].findFirst({
@@ -324,16 +351,28 @@ async function start() {
   console.log("A");
   console.time("e");
 
-  const relations = await getData("datas/test.json").then(async (datas) => {
-    return await createRelations(datas);
-    // NOTE: TEST
-    // await createRelation(datas, configRelation[0]);
-    // sendCards(data)
-  });
-  // console.log('card',relations);
-  const datas = await getData("datas/test.json").then(async (datas) => {
-    await buildCards(datas,relations);
-  });
+  // const relations = await getData("datas/test.json").then(async (datas) => {
+  //   return await createRelations(datas);
+  //          // NOTE: TEST
+  //          // await createRelation(datas, configRelation[0]);
+  //          // sendCards(data)
+  // });
+  // // console.log('card',relations);
+  // const datas = await getData("datas/test.json").then(async (datas) => {
+  //   await buildCards(datas,relations);
+  // });
+
+
+
+  const data=await getData("datas/test.json");
+  const relations =  await createRelations(data).then(async(item)=> {return await buildCards(data,item)});
+
+
+
+
+
+
+
   // je creer mes relation et les pousses sur la bdd
 
   // boucle sur mes datas (
@@ -346,6 +385,7 @@ start()
     // Tout ce qu'il faut faire à la fin du programme
     console.timeEnd("e");
     console.log("fin du programme");
+    await prisma.$disconnect();
   })
   // Si on a une erreur sur le programme
   // On pourrai utiliser un gestionnaire histoire de pas perdre le fil, mais bon
