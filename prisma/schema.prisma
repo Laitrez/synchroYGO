@@ -13,9 +13,9 @@ model card {
   desc            String      @db.LongText
   name_en         String
   ygoprodecUrl    String      @map("ygoprodeck_url")
-  betaId          Int         @map("beta_id")
-  konamiId        Int         @map("konami_id")
-  mdRarity        String      @map("md_rarity")
+  betaId          Int?         @map("beta_id")
+  konamiId        Int?         @map("konami_id")
+  mdRarity        String?      @map("md_rarity")
   deck_cards      deckCards[]
   cardTypeId      Int?
   cardRaceId      Int?
@@ -25,7 +25,7 @@ model card {
   race      cardRace?      @relation(fields: [cardRaceId], references: [id])
   archetype cardArchetype? @relation(fields: [cardArchetypeId], references: [id])
   userCards userCards[]
-  cardSets  cardSets[]     @relation("CardSetsRelation")
+  cardSets  cardSets[]    @relation("CardSetsRelation")
   formats   formats[]      @relation("CardFormatsRelation")
   cardPrice   cardPrice[]      @relation("CardPriceRelation")
 }

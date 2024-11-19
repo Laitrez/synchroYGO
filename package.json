@@ -5,6 +5,7 @@
   "scripts": {
     "dev:carousel": "nodemon ./src/carousel.html",
     "dev:antho": "nodemon ./src/synchro-antho.js",
+    "dev:chunk": "nodemon ./src/promess-chunk.js",
     "dev": "nodemon ./src/main.js",
     "migrate": "prisma migrate",
     "generate": "prisma generate"
