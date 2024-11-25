@@ -103,6 +103,7 @@ const configCard = {
   mapping: (card, relations) => {
     // console.log('card : ',card);
     const cardMapped = {
+      ygoId:card.id,
       name: card.name,
       desc: card.desc,
       name_en: card.name_en,

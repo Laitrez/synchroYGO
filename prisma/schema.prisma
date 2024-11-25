@@ -9,6 +9,7 @@ datasource db {
 
 model card {
   id              Int         @id @default(autoincrement())
+  ygoId           Int?         @map("ygo_id")  
   name            String
   desc            String      @db.LongText
   name_en         String
