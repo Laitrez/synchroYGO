@@ -9,14 +9,14 @@ datasource db {
 
 model card {
   id              Int         @id @default(autoincrement())
-  ygoId           Int?         @map("ygo_id")  
+  ygoId           Int?        @map("ygo_id")
   name            String
   desc            String      @db.LongText
   name_en         String
   ygoprodecUrl    String      @map("ygoprodeck_url")
-  betaId          Int?         @map("beta_id")
-  konamiId        Int?         @map("konami_id")
-  mdRarity        String?      @map("md_rarity")
+  betaId          Int?        @map("beta_id")
+  konamiId        Int?        @map("konami_id")
+  mdRarity        String?     @map("md_rarity")
   deck_cards      deckCards[]
   cardTypeId      Int?
   cardRaceId      Int?
@@ -26,9 +26,9 @@ model card {
   race      cardRace?      @relation(fields: [cardRaceId], references: [id])
   archetype cardArchetype? @relation(fields: [cardArchetypeId], references: [id])
   userCards userCards[]
-  cardSets  cardSets[]    @relation("CardSetsRelation")
+  cardSets  cardSets[]     @relation("CardSetsRelation")
   formats   formats[]      @relation("CardFormatsRelation")
-  cardPrice   cardPrice[]      @relation("CardPriceRelation")
+  cardPrice cardPrice[]    @relation("CardPriceRelation")
 }
 
 model cardSets {
@@ -51,7 +51,7 @@ model cardPrice {
   ebayPrice         String @map("ebay_price")
   amazonPrice       String @map("amazon_price")
   coolstuffincPrice String @map("coolstuffinc_price")
-  cards card[] @relation("CardPriceRelation")
+  cards             card[] @relation("CardPriceRelation")
 
   @@map("card_price")
 }
